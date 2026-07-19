@@ -5,6 +5,12 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
+local GuiParent = CoreGui
+pcall(function()
+    if gethui then
+        GuiParent = gethui()
+    end
+end)
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextChatService = game:GetService("TextChatService")
@@ -131,6 +137,7 @@ local apiWordListGui = nil
 local wrongWordListGui = nil
 local decisionLogGui = nil
 local ollamaAiGui = nil
+local unifiedInfoGui = nil
 
 -- Config File Paths
 local configFolder = "999SolverConfig"
@@ -554,7 +561,7 @@ local function GetVisualsFolder()
     if not VisualsFolder or not VisualsFolder.Parent then
         VisualsFolder = Instance.new("Folder")
         VisualsFolder.Name = "999Solver_Visuals"
-        VisualsFolder.Parent = CoreGui
+        VisualsFolder.Parent = GuiParent
     end
     return VisualsFolder
 end
@@ -712,7 +719,7 @@ Players.PlayerRemoving:Connect(RemoveESP)
 -- === API Word List UI ===
 local function CreateApiWordListGui()
     if apiWordListGui and apiWordListGui.Parent then return end
-    apiWordListGui = Instance.new("ScreenGui",CoreGui)
+    apiWordListGui = Instance.new("ScreenGui", GuiParent)
     apiWordListGui.Name = "ApiWordListLiquidGlass"
     apiWordListGui.ResetOnSpawn = false
 
@@ -823,7 +830,7 @@ end
 -- === Wrong Word List UI ===
 local function CreateWrongWordListGui()
     if wrongWordListGui and wrongWordListGui.Parent then return end
-    wrongWordListGui = Instance.new("ScreenGui", CoreGui)
+    wrongWordListGui = Instance.new("ScreenGui", GuiParent)
     wrongWordListGui.Name = "WrongWordListLiquidGlass"
     wrongWordListGui.ResetOnSpawn = false
 
@@ -939,7 +946,7 @@ end
 -- === Decision Log UI ===
 local function CreateDecisionLogGui()
     if decisionLogGui and decisionLogGui.Parent then return end
-    decisionLogGui = Instance.new("ScreenGui", CoreGui)
+    decisionLogGui = Instance.new("ScreenGui", GuiParent)
     decisionLogGui.Name = "DecisionLogLiquidGlass"
     decisionLogGui.ResetOnSpawn = false
     
@@ -1030,7 +1037,7 @@ end
 -- === Turn Status UI (Liquid Glass) ===
 CreateTurnStatusGui = function()
     if turnStatusGui and turnStatusGui.Parent then return end
-    turnStatusGui = Instance.new("ScreenGui", CoreGui)
+    turnStatusGui = Instance.new("ScreenGui", GuiParent)
     turnStatusGui.Name = "TurnStatusLiquidGlass"
     turnStatusGui.ResetOnSpawn = false
 
@@ -1127,17 +1134,218 @@ UpdateTurnStatusGui = function(turnName, lastWord)
     end
 end
 
+
+--------------------------------------------------------------
+-- 6.5 UNIFIED MOBILE INFO HUD (API / WRONG / TURN / LOG)
+--------------------------------------------------------------
+local unifiedSections = {}
+
+local function CreateUnifiedInfoGui()
+    if unifiedInfoGui and unifiedInfoGui.Parent then return end
+
+    unifiedInfoGui = Instance.new("ScreenGui", GuiParent)
+    unifiedInfoGui.Name = "NineSolverUnifiedInfoHUD"
+    unifiedInfoGui.ResetOnSpawn = false
+    unifiedInfoGui.Enabled = showApiWordList or showWrongWordList or showDecisionLog or showTurnStatusUI
+
+    local frame = Instance.new("Frame")
+    frame.Name = "UnifiedInfoFrame"
+    frame.Size = UDim2.fromOffset(230, 270)
+    frame.Position = UDim2.fromScale(0.04, 0.28)
+    frame.BackgroundColor3 = Color3.fromRGB(10, 14, 24)
+    frame.BackgroundTransparency = 0.08
+    frame.Parent = unifiedInfoGui
+
+    local frameCorner = Instance.new("UICorner")
+    frameCorner.CornerRadius = UDim.new(0, 18)
+    frameCorner.Parent = frame
+
+    local frameStroke = Instance.new("UIStroke")
+    frameStroke.Name = "UnifiedGlow"
+    frameStroke.Thickness = 1.8
+    frameStroke.Transparency = 0.12
+    frameStroke.Color = Color3.fromRGB(95, 180, 255)
+    frameStroke.Parent = frame
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Rotation = 25
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 24, 48)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(12, 16, 30)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(39, 22, 62))
+    }
+    gradient.Parent = frame
+
+    local title = Instance.new("TextLabel")
+    title.Name = "UnifiedTitle"
+    title.Size = UDim2.new(1, -18, 0, 30)
+    title.Position = UDim2.fromOffset(10, 8)
+    title.BackgroundTransparency = 1
+    title.Text = "⚡ 999 Solver Live"
+    title.TextColor3 = Color3.fromRGB(245, 248, 255)
+    title.TextSize = 16
+    title.Font = Enum.Font.GothamBlack
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = frame
+
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Name = "UnifiedSubtitle"
+    subtitle.Size = UDim2.new(1, -18, 0, 18)
+    subtitle.Position = UDim2.fromOffset(10, 34)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "API • Wrong • Turn • Decision"
+    subtitle.TextColor3 = Color3.fromRGB(155, 170, 205)
+    subtitle.TextSize = 10
+    subtitle.Font = Enum.Font.GothamMedium
+    subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    subtitle.Parent = frame
+
+    local function makeSection(key, titleText, y, height, color)
+        local box = Instance.new("Frame")
+        box.Name = key .. "Box"
+        box.Size = UDim2.new(1, -20, 0, height)
+        box.Position = UDim2.fromOffset(10, y)
+        box.BackgroundColor3 = Color3.fromRGB(18, 23, 38)
+        box.BackgroundTransparency = 0.14
+        box.Parent = frame
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 12)
+        corner.Parent = box
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 1
+        stroke.Transparency = 0.55
+        stroke.Color = color
+        stroke.Parent = box
+
+        local label = Instance.new("TextLabel")
+        label.Name = "Title"
+        label.Size = UDim2.new(1, -12, 0, 16)
+        label.Position = UDim2.fromOffset(7, 4)
+        label.BackgroundTransparency = 1
+        label.Text = titleText
+        label.TextColor3 = color
+        label.TextSize = 11
+        label.Font = Enum.Font.GothamBold
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = box
+
+        local body = Instance.new("TextLabel")
+        body.Name = "Body"
+        body.Size = UDim2.new(1, -12, 1, -23)
+        body.Position = UDim2.fromOffset(7, 20)
+        body.BackgroundTransparency = 1
+        body.Text = "—"
+        body.TextColor3 = Color3.fromRGB(230, 235, 248)
+        body.TextSize = 10
+        body.Font = Enum.Font.GothamMedium
+        body.TextWrapped = true
+        body.TextYAlignment = Enum.TextYAlignment.Top
+        body.TextXAlignment = Enum.TextXAlignment.Left
+        body.Parent = box
+
+        unifiedSections[key] = {Box = box, Body = body}
+    end
+
+    makeSection("Turn", "👤 เทิร์นปัจจุบัน", 58, 46, Color3.fromRGB(120, 205, 255))
+    makeSection("Api", "🧠 คำแนะนำล่าสุด", 110, 58, Color3.fromRGB(135, 245, 180))
+    makeSection("Wrong", "🚫 คำผิด / Blacklist", 174, 46, Color3.fromRGB(255, 120, 145))
+    makeSection("Decision", "📝 Decision Log", 226, 34, Color3.fromRGB(215, 170, 255))
+
+    local draggingHud, dragInputHud, dragStartHud, startPosHud
+    local function updateHud(input)
+        local delta = input.Position - dragStartHud
+        frame.Position = UDim2.new(startPosHud.X.Scale, startPosHud.X.Offset + delta.X, startPosHud.Y.Scale, startPosHud.Y.Offset + delta.Y)
+    end
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingHud = true
+            dragStartHud = input.Position
+            startPosHud = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then draggingHud = false end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInputHud = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInputHud and draggingHud then updateHud(input) end
+    end)
+end
+
+local function RefreshUnifiedInfoVisibility()
+    if not unifiedInfoGui or not unifiedInfoGui.Parent then CreateUnifiedInfoGui() end
+    unifiedInfoGui.Enabled = showApiWordList or showWrongWordList or showDecisionLog or showTurnStatusUI
+    if unifiedSections.Api then unifiedSections.Api.Box.Visible = showApiWordList end
+    if unifiedSections.Wrong then unifiedSections.Wrong.Box.Visible = showWrongWordList end
+    if unifiedSections.Decision then unifiedSections.Decision.Box.Visible = showDecisionLog end
+    if unifiedSections.Turn then unifiedSections.Turn.Box.Visible = showTurnStatusUI end
+end
+
+local function SetUnifiedSection(key, text)
+    if not unifiedInfoGui or not unifiedInfoGui.Parent then CreateUnifiedInfoGui() end
+    if unifiedSections[key] and unifiedSections[key].Body then
+        unifiedSections[key].Body.Text = text or "—"
+    end
+    RefreshUnifiedInfoVisibility()
+end
+
+-- Override the older separate floating widgets: all live status now renders inside one HUD.
+UpdateApiWordListGui = function(words)
+    words = words or lastAPIWords or {}
+    if apiWordListGui then apiWordListGui.Enabled = false end
+    local lines = {}
+    for i, word in ipairs(words) do
+        if i > 5 then break end
+        table.insert(lines, tostring(i) .. ". " .. tostring(word))
+    end
+    if #lines == 0 then table.insert(lines, "ยังไม่มีคำแนะนำ") end
+    SetUnifiedSection("Api", table.concat(lines, "\n"))
+end
+
+UpdateWrongWordListGui = function()
+    if wrongWordListGui then wrongWordListGui.Enabled = false end
+    local words = {}
+    for word in pairs(wrongWords) do
+        table.insert(words, word)
+        if #words >= 4 then break end
+    end
+    local extra = GetWrongWordsCount() > #words and ("\n+" .. tostring(GetWrongWordsCount() - #words) .. " คำ") or ""
+    SetUnifiedSection("Wrong", (#words > 0 and table.concat(words, ", ") or "ยังไม่มีคำผิด") .. extra)
+end
+
+UpdateDecisionLogGui = function(prefix, minLen, resultWord)
+    if decisionLogGui then decisionLogGui.Enabled = false end
+    local text = string.format("Prefix: %s | Min: %s\nเลือก: %s", tostring(prefix or "-"), tostring(minLen or "-"), tostring(resultWord or "None"))
+    SetUnifiedSection("Decision", text)
+end
+
+UpdateTurnStatusGui = function(turnName, lastWord)
+    if turnStatusGui then turnStatusGui.Enabled = false end
+    local name = turnName or "Me / Idle"
+    local word = lastWord or lastOtherPlayerWord or "None"
+    SetUnifiedSection("Turn", "ผู้เล่น: " .. tostring(name) .. "\nคำล่าสุด: " .. tostring(word))
+end
+
 -- === Ollama UI ===
 ToggleOllamaGui = function()
-    if CoreGui:FindFirstChild("AiVocabUI_V2") then
-        CoreGui.AiVocabUI_V2:Destroy()
+    if GuiParent:FindFirstChild("AiVocabUI_V2") then
+        GuiParent.AiVocabUI_V2:Destroy()
         ollamaAiGui = nil
         return
     end
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "AiVocabUI_V2"
-    ScreenGui.Parent = CoreGui
+    ScreenGui.Parent = GuiParent
     ollamaAiGui = ScreenGui
 
     local Frame = Instance.new("Frame")
@@ -2461,137 +2669,170 @@ local function ScanWorkspaceAndRS()
 end
 
 --------------------------------------------------------------
--- 14. LIQUID / GLASS CUSTOM UI (Buttons)
+-- 14. CLEAN MOBILE CONTROL HUB (Single Button + Compact Panel)
 --------------------------------------------------------------
--- Undo Button
-local UndoButtonGui = Instance.new("ScreenGui",CoreGui)
-UndoButtonGui.ResetOnSpawn = false
-local UndoLiquidButton = Instance.new("TextButton")
-local UndoButtonStroke, UndoButtonCorner, UndoButtonGradient = Instance.new("UIStroke"), Instance.new("UICorner"), Instance.new("UIGradient")
-UndoLiquidButton.Name = "UndoWrongLiquidBtn"
-UndoLiquidButton.Size = UDim2.fromOffset(60, 60)
-UndoLiquidButton.Position = UDim2.fromScale(0.7, 0.6)
-UndoLiquidButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-UndoLiquidButton.BackgroundTransparency = 0.15
-UndoLiquidButton.Text = "UNDO"
-UndoLiquidButton.TextSize = 20
-UndoLiquidButton.Font = Enum.Font.GothamBlack
-UndoLiquidButton.AutoButtonColor = false
-UndoLiquidButton.Visible = UserConfig.UndoLiquidBtnToggle or false
-UndoLiquidButton.Parent = UndoButtonGui
-UndoButtonCorner.CornerRadius = UDim.new(1, 0) UndoButtonCorner.Parent = UndoLiquidButton
-UndoButtonStroke.Thickness = 3 UndoButtonStroke.Transparency = 0 UndoButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border UndoButtonStroke.Parent = UndoLiquidButton
-UndoButtonGradient.Rotation = 60 UndoButtonGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(200,200,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(120,120,180))}
-UndoButtonGradient.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0,0.5), NumberSequenceKeypoint.new(0.5,0.8), NumberSequenceKeypoint.new(1,0.2)}
-UndoButtonGradient.Parent = UndoLiquidButton
+local MobileGui = Instance.new("ScreenGui", GuiParent)
+MobileGui.Name = "NineSolverMobileHub"
+MobileGui.ResetOnSpawn = false
 
-task.spawn(function()
-    local hue = 0
-    while UndoLiquidButton.Parent do
-        hue = (hue + 0.011) % 1
-        local color = Color3.fromHSV(hue, 0.5, 1)
-        UndoButtonStroke.Color = color
-        UndoLiquidButton.TextColor3 = color
-        task.wait(0.025)
-    end
-end)
+local MobileHubFrame = Instance.new("Frame")
+MobileHubFrame.Name = "CompactActionPanel"
+MobileHubFrame.Size = UDim2.fromOffset(190, 172)
+MobileHubFrame.Position = UDim2.fromScale(0.56, 0.48)
+MobileHubFrame.BackgroundColor3 = Color3.fromRGB(13, 17, 28)
+MobileHubFrame.BackgroundTransparency = 0.08
+MobileHubFrame.Visible = false
+MobileHubFrame.Parent = MobileGui
 
-local undoDragging, undoDragInput, undoDragStart, undoStartPos
-local function undoUpdate(input)
-    local delta = input.Position - undoDragStart
-    UndoLiquidButton.Position = UDim2.new(undoStartPos.X.Scale, undoStartPos.X.Offset + delta.X, undoStartPos.Y.Scale, undoStartPos.Y.Offset + delta.Y)
+local HubCorner = Instance.new("UICorner")
+HubCorner.CornerRadius = UDim.new(0, 18)
+HubCorner.Parent = MobileHubFrame
+
+local HubStroke = Instance.new("UIStroke")
+HubStroke.Thickness = 1.8
+HubStroke.Transparency = 0.15
+HubStroke.Color = Color3.fromRGB(120, 180, 255)
+HubStroke.Parent = MobileHubFrame
+
+local HubGradient = Instance.new("UIGradient")
+HubGradient.Rotation = 38
+HubGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 28, 52)),
+    ColorSequenceKeypoint.new(0.55, Color3.fromRGB(16, 20, 36)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(42, 22, 70))
+}
+HubGradient.Parent = MobileHubFrame
+
+local HubPadding = Instance.new("UIPadding")
+HubPadding.PaddingTop = UDim.new(0, 10)
+HubPadding.PaddingBottom = UDim.new(0, 10)
+HubPadding.PaddingLeft = UDim.new(0, 10)
+HubPadding.PaddingRight = UDim.new(0, 10)
+HubPadding.Parent = MobileHubFrame
+
+local HubTitle = Instance.new("TextLabel")
+HubTitle.Name = "HubTitle"
+HubTitle.Size = UDim2.new(1, -28, 0, 22)
+HubTitle.BackgroundTransparency = 1
+HubTitle.Text = "999 Solver Hub"
+HubTitle.TextColor3 = Color3.fromRGB(245, 248, 255)
+HubTitle.TextSize = 15
+HubTitle.Font = Enum.Font.GothamBold
+HubTitle.TextXAlignment = Enum.TextXAlignment.Left
+HubTitle.Parent = MobileHubFrame
+
+local HubClose = Instance.new("TextButton")
+HubClose.Name = "HubClose"
+HubClose.Size = UDim2.fromOffset(24, 24)
+HubClose.Position = UDim2.new(1, -24, 0, -1)
+HubClose.BackgroundColor3 = Color3.fromRGB(255, 92, 122)
+HubClose.BackgroundTransparency = 0.18
+HubClose.Text = "×"
+HubClose.TextColor3 = Color3.fromRGB(255, 255, 255)
+HubClose.TextSize = 16
+HubClose.Font = Enum.Font.GothamBold
+HubClose.Parent = MobileHubFrame
+Instance.new("UICorner", HubClose).CornerRadius = UDim.new(1, 0)
+
+local function createHubButton(name, text, y, accentColor)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.Position = UDim2.new(0, 0, 0, y)
+    btn.BackgroundColor3 = accentColor
+    btn.BackgroundTransparency = 0.08
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamBold
+    btn.AutoButtonColor = true
+    btn.Parent = MobileHubFrame
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = btn
+    return btn
 end
 
-UndoLiquidButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        undoDragging = true
-        undoDragStart = input.Position
-        undoStartPos = UndoLiquidButton.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then undoDragging = false end
-        end)
-    end
-end)
+local RunOnceButton = createHubButton("RunOnce", "🚀 หาคำทันที", 34, Color3.fromRGB(55, 120, 255))
+local UndoLiquidButton = createHubButton("UndoWrong", "↩️ ย้อนคำผิดล่าสุด", 74, Color3.fromRGB(125, 85, 230))
+UndoLiquidButton.Visible = UserConfig.UndoLiquidBtnToggle or false
+local StatsButton = createHubButton("QuickStats", "📊 สถิติคำ", 114, Color3.fromRGB(35, 170, 140))
 
-UndoLiquidButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        undoDragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == undoDragInput and undoDragging then undoUpdate(input) end
-end)
-
-UndoLiquidButton.MouseButton1Click:Connect(function()
-    TweenService:Create(UndoLiquidButton, TweenInfo.new(0.1), {Size = UDim2.fromOffset(45,45)}):Play()
-    task.wait(0.1)
-    TweenService:Create(UndoLiquidButton, TweenInfo.new(0.1), {Size = UDim2.fromOffset(60,60)}):Play()
-    UndoLastWrongWord()
-end)
-
--- Mobile Button
-local MobileGui = Instance.new("ScreenGui",CoreGui)
-MobileGui.ResetOnSpawn = false
 local MobileButtonFrame = Instance.new("TextButton")
 local ButtonStroke, ButtonCorner, ButtonGradient = Instance.new("UIStroke"), Instance.new("UICorner"), Instance.new("UIGradient")
-MobileButtonFrame.Name = "LiquidButton"
-MobileButtonFrame.Size = UDim2.fromOffset(60, 60)
-MobileButtonFrame.Position = UDim2.fromScale(0.8, 0.6)
-MobileButtonFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MobileButtonFrame.BackgroundTransparency = 0.2
-MobileButtonFrame.Text = "🚀"
-MobileButtonFrame.TextSize = 30
+MobileButtonFrame.Name = "SolverHubButton"
+MobileButtonFrame.Size = UDim2.fromOffset(56, 56)
+MobileButtonFrame.Position = UDim2.fromScale(0.82, 0.58)
+MobileButtonFrame.BackgroundColor3 = Color3.fromRGB(18, 22, 34)
+MobileButtonFrame.BackgroundTransparency = 0.08
+MobileButtonFrame.Text = "⚡"
+MobileButtonFrame.TextSize = 28
+MobileButtonFrame.Font = Enum.Font.GothamBlack
 MobileButtonFrame.AutoButtonColor = false
-MobileButtonFrame.Visible = UserConfig.MobileBtnToggle or false
+MobileButtonFrame.Visible = (UserConfig.MobileBtnToggle or false) or (UserConfig.UndoLiquidBtnToggle or false)
 MobileButtonFrame.Parent = MobileGui
 ButtonCorner.CornerRadius = UDim.new(1, 0) ButtonCorner.Parent = MobileButtonFrame
-ButtonStroke.Thickness = 3 ButtonStroke.Transparency = 0 ButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border ButtonStroke.Parent = MobileButtonFrame
-ButtonGradient.Rotation = 45 ButtonGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(150,150,150))} ButtonGradient.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0,0.5), NumberSequenceKeypoint.new(0.5,0.8), NumberSequenceKeypoint.new(1,0.5)} ButtonGradient.Parent = MobileButtonFrame
+ButtonStroke.Thickness = 2.5 ButtonStroke.Transparency = 0 ButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border ButtonStroke.Parent = MobileButtonFrame
+ButtonGradient.Rotation = 45
+ButtonGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(120,205,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(210,140,255))}
+ButtonGradient.Parent = MobileButtonFrame
 
-task.spawn(function()
-    local hue = 0
-    while MobileButtonFrame.Parent do
-        hue = (hue + 0.01) % 1
-        local color = Color3.fromHSV(hue, 1, 1)
-        ButtonStroke.Color = color
-        MobileButtonFrame.TextColor3 = color
-        task.wait(0.03)
-    end
-end)
-
-local dragging, dragInput, dragStart, startPos
-local function update(input)
-    local delta = input.Position - dragStart
-    MobileButtonFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+local hubDragging, hubDragInput, hubDragStart, hubStartPos
+local function updateHubPosition(input)
+    local delta = input.Position - hubDragStart
+    MobileButtonFrame.Position = UDim2.new(hubStartPos.X.Scale, hubStartPos.X.Offset + delta.X, hubStartPos.Y.Scale, hubStartPos.Y.Offset + delta.Y)
+    MobileHubFrame.Position = UDim2.new(hubStartPos.X.Scale, hubStartPos.X.Offset + delta.X - 135, hubStartPos.Y.Scale, hubStartPos.Y.Offset + delta.Y - 182)
 end
 
 MobileButtonFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MobileButtonFrame.Position
+        hubDragging = true
+        hubDragStart = input.Position
+        hubStartPos = MobileButtonFrame.Position
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            if input.UserInputState == Enum.UserInputState.End then hubDragging = false end
         end)
     end
 end)
 
 MobileButtonFrame.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+        hubDragInput = input
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then update(input) end
+    if input == hubDragInput and hubDragging then updateHubPosition(input) end
 end)
 
 MobileButtonFrame.MouseButton1Click:Connect(function()
-    TweenService:Create(MobileButtonFrame, TweenInfo.new(0.1), {Size = UDim2.fromOffset(50,50)}):Play()
-    task.wait(0.1)
-    TweenService:Create(MobileButtonFrame, TweenInfo.new(0.1), {Size = UDim2.fromOffset(60,60)}):Play()
-    RunAutoLogic()
+    TweenService:Create(MobileButtonFrame, TweenInfo.new(0.08), {Size = UDim2.fromOffset(50,50)}):Play()
+    task.wait(0.08)
+    TweenService:Create(MobileButtonFrame, TweenInfo.new(0.08), {Size = UDim2.fromOffset(56,56)}):Play()
+    MobileHubFrame.Visible = not MobileHubFrame.Visible
+end)
+
+HubClose.MouseButton1Click:Connect(function() MobileHubFrame.Visible = false end)
+RunOnceButton.MouseButton1Click:Connect(function() RunAutoLogic() end)
+UndoLiquidButton.MouseButton1Click:Connect(function() UndoLastWrongWord() end)
+StatsButton.MouseButton1Click:Connect(function()
+    Rayfield:Notify({
+        Title = "📊 Solver Stats",
+        Content = string.format("Used: %d | Saved: %d\nWrong: %d | Blacklist: %d", GetUsedWordsCount(), GetVerifiedWordsCount(), GetWrongWordsCount(), GetBlacklistCount()),
+        Duration = 4,
+    })
+end)
+
+task.spawn(function()
+    local hue = 0
+    while MobileButtonFrame.Parent do
+        hue = (hue + 0.01) % 1
+        local color = Color3.fromHSV(hue, 0.72, 1)
+        ButtonStroke.Color = color
+        HubStroke.Color = color
+        MobileButtonFrame.TextColor3 = color
+        task.wait(0.03)
+    end
 end)
 
 --------------------------------------------------------------
@@ -2606,16 +2847,16 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
 })
 
-local MainTab = Window:CreateTab("หน้าหลัก",4483362458)
-local VisualsTab = Window:CreateTab("👁️ Visuals/Chat", 4483362458)
-local SettingsTab = Window:CreateTab("ตั้งค่า",4483362458)
+local MainTab = Window:CreateTab("⚡ เล่น",4483362458)
+local VisualsTab = Window:CreateTab("✨ ภาพ/แชท", 4483362458)
+local SettingsTab = Window:CreateTab("⚙️ ตั้งค่า",4483362458)
 local BlacklistTab = Window:CreateTab("🚫 Blacklist",4483362458)
-local ToolsTab = Window:CreateTab("เครื่องมือ",4483362458)
+local ToolsTab = Window:CreateTab("🧰 เครื่องมือ",4483362458)
 
 -- MAIN TAB
-MainTab:CreateSection("🏆 ระบบลำดับความสำคัญ (Source Priority)")
+MainTab:CreateSection("🎯 เลือกแหล่งคำ")
 MainTab:CreateDropdown({
-    Name = "1️⃣ Priority 1 (เลือกเป็นอันดับแรก)",
+    Name = "อันดับ 1: ใช้ก่อน",
     Options = AvailableSources,
     CurrentOption = {SourcePriorities[1]},
     MultipleOptions = false,
@@ -2627,7 +2868,7 @@ MainTab:CreateDropdown({
     end,
 })
 MainTab:CreateDropdown({
-    Name = "2️⃣ Priority 2 (ถ้าหาไม่เจอให้เลือกอันนี้)",
+    Name = "อันดับ 2: สำรอง",
     Options = AvailableSources,
     CurrentOption = {SourcePriorities[2]},
     MultipleOptions = false,
@@ -2639,7 +2880,7 @@ MainTab:CreateDropdown({
     end,
 })
 MainTab:CreateDropdown({
-    Name = "3️⃣ Priority 3 (สุดท้าย)",
+    Name = "อันดับ 3: สำรองสุดท้าย",
     Options = AvailableSources,
     CurrentOption = {SourcePriorities[3]},
     MultipleOptions = false,
@@ -2651,7 +2892,7 @@ MainTab:CreateDropdown({
     end,
 })
 
-MainTab:CreateSection("Ollama AI (New!)")
+MainTab:CreateSection("🤖 Ollama AI")
 MainTab:CreateInput({
     Name = "🔗 Ollama API URL (Static/Ngrok)",
     PlaceholderText = "วางลิงก์ API ที่นี่ (เช่น https://...)",
@@ -2676,7 +2917,7 @@ MainTab:CreateParagraph({
     Content = "1. ใส่ลิงก์ Static Ngrok ในช่องด้านบน\n2. เลือก 'Ollama Model' ใน Priority Dropdown เพื่อใช้ออโต้\n3. กดปุ่ม 'เปิดหน้าต่าง' เพื่อทดสอบดึงคำด้วยมือ"
 })
 
-MainTab:CreateSection("API MODE ขั้นเทพ")
+MainTab:CreateSection("🧠 วิธีเลือกคำ")
 MainTab:CreateToggle({
     Name = "เลือกเสมอคำที่สั้นที่สุด API (Least Pick) ✅ FIXED",
     CurrentValue = apiLeastPickMode,
@@ -2724,7 +2965,7 @@ MainTab:CreateToggle({
     end
 })
 
-MainTab:CreateSection("ระบบออโต้ & ตัวช่วย")
+MainTab:CreateSection("📱 ควบคุมบนมือถือ")
 MainTab:CreateButton({
     Name = "🚀 กดเพื่อหาคำ (Run Once)",
     Callback = RunAutoLogic
@@ -2766,27 +3007,33 @@ MainTab:CreateToggle({
         UserConfig.TurnStatusUIToggle = v
         SaveUserConfig()
         if v then UpdateTurnStatusGui(currentTurnPlayerName, lastOtherPlayerWord) 
-        elseif turnStatusGui then turnStatusGui.Enabled = false end
+        else
+            if turnStatusGui then turnStatusGui.Enabled = false end
+            if RefreshUnifiedInfoVisibility then RefreshUnifiedInfoVisibility() end
+        end
     end
 })
 
 MainTab:CreateToggle({
-    Name = "📱 ปุ่มมือถือ (Liquid RGB Button)",
+    Name = "📱 ปุ่มเดียว Solver Hub",
     CurrentValue = UserConfig.MobileBtnToggle,
     Flag = "MobileBtnToggle",
     Callback = function(v)
-        MobileButtonFrame.Visible=v
+        MobileButtonFrame.Visible = v or UserConfig.UndoLiquidBtnToggle
+        if not MobileButtonFrame.Visible then MobileHubFrame.Visible = false end
         UserConfig.MobileBtnToggle=v
         SaveUserConfig()
     end,
 })
 
 MainTab:CreateToggle({
-    Name = "🧊 ปุ่ม UndoWrong (Liquid glass)",
+    Name = "↩️ แสดงปุ่ม Undo ใน Hub",
     CurrentValue = UserConfig.UndoLiquidBtnToggle,
     Flag = "UndoLiquidBtnToggle",
     Callback = function(v)
         UndoLiquidButton.Visible=v
+        MobileButtonFrame.Visible = v or UserConfig.MobileBtnToggle
+        if not MobileButtonFrame.Visible then MobileHubFrame.Visible = false end
         UserConfig.UndoLiquidBtnToggle=v
         SaveUserConfig()
     end,
@@ -2801,7 +3048,10 @@ MainTab:CreateToggle({
         UserConfig.ApiWordListUIToggle = v
         SaveUserConfig()
         if v then UpdateApiWordListGui(lastAPIWords)
-        elseif apiWordListGui then apiWordListGui.Enabled = false end
+        else
+            if apiWordListGui then apiWordListGui.Enabled = false end
+            if RefreshUnifiedInfoVisibility then RefreshUnifiedInfoVisibility() end
+        end
     end
 })
 
@@ -2814,7 +3064,10 @@ MainTab:CreateToggle({
         UserConfig.WrongWordListUIToggle = v
         SaveUserConfig()
         if v then UpdateWrongWordListGui()
-        elseif wrongWordListGui then wrongWordListGui.Enabled = false end
+        else
+            if wrongWordListGui then wrongWordListGui.Enabled = false end
+            if RefreshUnifiedInfoVisibility then RefreshUnifiedInfoVisibility() end
+        end
     end
 })
 
@@ -2966,7 +3219,7 @@ BlacklistTab:CreateButton({
 })
 
 -- SETTINGS TAB
-SettingsTab:CreateSection("ตั้งค่าการพิมพ์")
+SettingsTab:CreateSection("⌨️ ความเร็วและการพิมพ์")
 SettingsTab:CreateToggle({
     Name = "⚡ Super Fast Mode (พิมพ์เร็วขั้นสุด < 0.1s)",
     CurrentValue = isSuperFastMode,
@@ -3051,7 +3304,7 @@ SettingsTab:CreateInput({
     end,
 })
 
-SettingsTab:CreateSection("🆕 Auto Min Length Check")
+SettingsTab:CreateSection("📏 กฎความยาวคำ")
 SettingsTab:CreateToggle({
     Name = "🛡️ ตรวจความยาวขั้นต่ำอัตโนมัติ",
     CurrentValue = isMinLengthCheckActive,
@@ -3075,12 +3328,12 @@ SettingsTab:CreateToggle({
         showDecisionLog = v
         UserConfig.DecisionLogToggle = v
         SaveUserConfig()
-        if not v and decisionLogGui then decisionLogGui.Enabled = false end
-        if v and decisionLogGui then decisionLogGui.Enabled = true end
+        if decisionLogGui then decisionLogGui.Enabled = false end
+        if RefreshUnifiedInfoVisibility then RefreshUnifiedInfoVisibility() end
     end,
 })
 
-SettingsTab:CreateSection("วิธีตรวจจับคำผิด")
+SettingsTab:CreateSection("🔴 ตรวจจับคำผิด")
 SettingsTab:CreateDropdown({
     Name = "🔴 เลือกวิธีตรวจจับ Error",
     Options = {"🆕 Highlight Detection (แนะนำ)"},
@@ -3094,8 +3347,25 @@ SettingsTab:CreateDropdown({
     end,
 })
 
+
+local function RebuildOpenRouterKeys()
+    local keys = {}
+    if UserConfig.OpenRouterKey1 and UserConfig.OpenRouterKey1 ~= "" then table.insert(keys, UserConfig.OpenRouterKey1) end
+    if UserConfig.OpenRouterKey2 and UserConfig.OpenRouterKey2 ~= "" then table.insert(keys, UserConfig.OpenRouterKey2) end
+    if UserConfig.OpenRouterKey3 and UserConfig.OpenRouterKey3 ~= "" then table.insert(keys, UserConfig.OpenRouterKey3) end
+    openRouterApiKeys = keys
+    return #keys
+end
+
+local function SaveOpenRouterSlot(slot, txt)
+    UserConfig["OpenRouterKey" .. tostring(slot)] = txt or ""
+    local count = RebuildOpenRouterKeys()
+    SaveUserConfig()
+    Rayfield:Notify({Title="🔐 OpenRouter Saved", Content="จำ API Key แล้ว " .. count .. "/3 ช่อง", Duration=2})
+end
+
 -- ============ OpenRouter AI Section (3 API Keys) ============
-SettingsTab:CreateSection("🌐 OpenRouter AI (ใหม่!)")
+SettingsTab:CreateSection("🌐 OpenRouter AI — จำคีย์/โมเดลอัตโนมัติ")
 SettingsTab:CreateToggle({
     Name = "เปิดใช้งาน OpenRouter AI",
     CurrentValue = openRouterEnabled,
@@ -3109,50 +3379,34 @@ SettingsTab:CreateToggle({
 })
 SettingsTab:CreateInput({
     Name = "🔑 API Key 1",
-    PlaceholderText = "sk-or-v1-...",
+    PlaceholderText = UserConfig.OpenRouterKey1 ~= "" and "บันทึกไว้แล้ว — พิมพ์ใหม่เพื่อเปลี่ยน" or "sk-or-v1-...",
+    RemoveTextAfterFocusLost = false,
     Callback = function(txt)
-        UserConfig.OpenRouterKey1 = txt
-        SaveUserConfig()
-        local keys = {}
-        if UserConfig.OpenRouterKey1 and UserConfig.OpenRouterKey1 ~= "" then table.insert(keys, UserConfig.OpenRouterKey1) end
-        if UserConfig.OpenRouterKey2 and UserConfig.OpenRouterKey2 ~= "" then table.insert(keys, UserConfig.OpenRouterKey2) end
-        if UserConfig.OpenRouterKey3 and UserConfig.OpenRouterKey3 ~= "" then table.insert(keys, UserConfig.OpenRouterKey3) end
-        openRouterApiKeys = keys
-        Rayfield:Notify({Title="API Keys", Content="ตั้งค่า "..#keys.." คีย์แล้ว", Duration=2})
+        SaveOpenRouterSlot(1, txt)
     end,
 })
 SettingsTab:CreateInput({
     Name = "🔑 API Key 2 (Optional)",
-    PlaceholderText = "sk-or-v1-... (optional)",
+    PlaceholderText = UserConfig.OpenRouterKey2 ~= "" and "บันทึกไว้แล้ว — พิมพ์ใหม่เพื่อเปลี่ยน" or "sk-or-v1-... (optional)",
+    RemoveTextAfterFocusLost = false,
     Callback = function(txt)
-        UserConfig.OpenRouterKey2 = txt
-        SaveUserConfig()
-        local keys = {}
-        if UserConfig.OpenRouterKey1 and UserConfig.OpenRouterKey1 ~= "" then table.insert(keys, UserConfig.OpenRouterKey1) end
-        if UserConfig.OpenRouterKey2 and UserConfig.OpenRouterKey2 ~= "" then table.insert(keys, UserConfig.OpenRouterKey2) end
-        if UserConfig.OpenRouterKey3 and UserConfig.OpenRouterKey3 ~= "" then table.insert(keys, UserConfig.OpenRouterKey3) end
-        openRouterApiKeys = keys
-        Rayfield:Notify({Title="API Keys", Content="ตั้งค่า "..#keys.." คีย์แล้ว", Duration=2})
+        SaveOpenRouterSlot(2, txt)
     end,
 })
 SettingsTab:CreateInput({
     Name = "🔑 API Key 3 (Optional)",
-    PlaceholderText = "sk-or-v1-... (optional)",
+    PlaceholderText = UserConfig.OpenRouterKey3 ~= "" and "บันทึกไว้แล้ว — พิมพ์ใหม่เพื่อเปลี่ยน" or "sk-or-v1-... (optional)",
+    RemoveTextAfterFocusLost = false,
     Callback = function(txt)
-        UserConfig.OpenRouterKey3 = txt
-        SaveUserConfig()
-        local keys = {}
-        if UserConfig.OpenRouterKey1 and UserConfig.OpenRouterKey1 ~= "" then table.insert(keys, UserConfig.OpenRouterKey1) end
-        if UserConfig.OpenRouterKey2 and UserConfig.OpenRouterKey2 ~= "" then table.insert(keys, UserConfig.OpenRouterKey2) end
-        if UserConfig.OpenRouterKey3 and UserConfig.OpenRouterKey3 ~= "" then table.insert(keys, UserConfig.OpenRouterKey3) end
-        openRouterApiKeys = keys
-        Rayfield:Notify({Title="API Keys", Content="ตั้งค่า "..#keys.." คีย์แล้ว", Duration=2})
+        SaveOpenRouterSlot(3, txt)
     end,
 })
 SettingsTab:CreateInput({
     Name = "🧠 ชื่อโมเดล OpenRouter",
-    PlaceholderText = "google/gemini-2.0-flash-exp:free",
+    PlaceholderText = openRouterModel or "google/gemini-2.0-flash-exp:free",
+    RemoveTextAfterFocusLost = false,
     Callback = function(txt)
+        if not txt or txt == "" then return end
         openRouterModel = txt
         UserConfig.OpenRouterModel = txt
         SaveUserConfig()
@@ -3201,7 +3455,7 @@ SettingsTab:CreateButton({
     end,
 })
 
-SettingsTab:CreateSection("ระบบเสริม")
+SettingsTab:CreateSection("🛡️ ระบบเสริม")
 SettingsTab:CreateToggle({
     Name = "🛡️ Anti-Idle (กันหลุด - คลิ้กซ้าย)",
     CurrentValue = UserConfig.AntiIdle,
@@ -3253,6 +3507,7 @@ SettingsTab:CreateButton({
         if wrongWordListGui then wrongWordListGui:Destroy() end
         if decisionLogGui then decisionLogGui:Destroy() end
         if turnStatusGui then turnStatusGui:Destroy() end
+        if unifiedInfoGui then unifiedInfoGui:Destroy() end
         if ollamaAiGui then ollamaAiGui:Destroy() end
         if VisualsFolder then VisualsFolder:Destroy() end
         Rayfield:Destroy()
