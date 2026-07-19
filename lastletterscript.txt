@@ -137,6 +137,7 @@ local apiWordListGui = nil
 local wrongWordListGui = nil
 local decisionLogGui = nil
 local ollamaAiGui = nil
+local unifiedInfoGui = nil
 
 -- Config File Paths
 local configFolder = "999SolverConfig"
@@ -1131,6 +1132,207 @@ UpdateTurnStatusGui = function(turnName, lastWord)
         if tLbl then tLbl.Text = "Turn: " .. (turnName or "Unknown") end
         if lLbl then lLbl.Text = "Last: " .. (lastWord or "None") end
     end
+end
+
+
+--------------------------------------------------------------
+-- 6.5 UNIFIED MOBILE INFO HUD (API / WRONG / TURN / LOG)
+--------------------------------------------------------------
+local unifiedSections = {}
+
+local function CreateUnifiedInfoGui()
+    if unifiedInfoGui and unifiedInfoGui.Parent then return end
+
+    unifiedInfoGui = Instance.new("ScreenGui", GuiParent)
+    unifiedInfoGui.Name = "NineSolverUnifiedInfoHUD"
+    unifiedInfoGui.ResetOnSpawn = false
+    unifiedInfoGui.Enabled = showApiWordList or showWrongWordList or showDecisionLog or showTurnStatusUI
+
+    local frame = Instance.new("Frame")
+    frame.Name = "UnifiedInfoFrame"
+    frame.Size = UDim2.fromOffset(230, 270)
+    frame.Position = UDim2.fromScale(0.04, 0.28)
+    frame.BackgroundColor3 = Color3.fromRGB(10, 14, 24)
+    frame.BackgroundTransparency = 0.08
+    frame.Parent = unifiedInfoGui
+
+    local frameCorner = Instance.new("UICorner")
+    frameCorner.CornerRadius = UDim.new(0, 18)
+    frameCorner.Parent = frame
+
+    local frameStroke = Instance.new("UIStroke")
+    frameStroke.Name = "UnifiedGlow"
+    frameStroke.Thickness = 1.8
+    frameStroke.Transparency = 0.12
+    frameStroke.Color = Color3.fromRGB(95, 180, 255)
+    frameStroke.Parent = frame
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Rotation = 25
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 24, 48)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(12, 16, 30)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(39, 22, 62))
+    }
+    gradient.Parent = frame
+
+    local title = Instance.new("TextLabel")
+    title.Name = "UnifiedTitle"
+    title.Size = UDim2.new(1, -18, 0, 30)
+    title.Position = UDim2.fromOffset(10, 8)
+    title.BackgroundTransparency = 1
+    title.Text = "⚡ 999 Solver Live"
+    title.TextColor3 = Color3.fromRGB(245, 248, 255)
+    title.TextSize = 16
+    title.Font = Enum.Font.GothamBlack
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = frame
+
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Name = "UnifiedSubtitle"
+    subtitle.Size = UDim2.new(1, -18, 0, 18)
+    subtitle.Position = UDim2.fromOffset(10, 34)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "API • Wrong • Turn • Decision"
+    subtitle.TextColor3 = Color3.fromRGB(155, 170, 205)
+    subtitle.TextSize = 10
+    subtitle.Font = Enum.Font.GothamMedium
+    subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    subtitle.Parent = frame
+
+    local function makeSection(key, titleText, y, height, color)
+        local box = Instance.new("Frame")
+        box.Name = key .. "Box"
+        box.Size = UDim2.new(1, -20, 0, height)
+        box.Position = UDim2.fromOffset(10, y)
+        box.BackgroundColor3 = Color3.fromRGB(18, 23, 38)
+        box.BackgroundTransparency = 0.14
+        box.Parent = frame
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 12)
+        corner.Parent = box
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 1
+        stroke.Transparency = 0.55
+        stroke.Color = color
+        stroke.Parent = box
+
+        local label = Instance.new("TextLabel")
+        label.Name = "Title"
+        label.Size = UDim2.new(1, -12, 0, 16)
+        label.Position = UDim2.fromOffset(7, 4)
+        label.BackgroundTransparency = 1
+        label.Text = titleText
+        label.TextColor3 = color
+        label.TextSize = 11
+        label.Font = Enum.Font.GothamBold
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = box
+
+        local body = Instance.new("TextLabel")
+        body.Name = "Body"
+        body.Size = UDim2.new(1, -12, 1, -23)
+        body.Position = UDim2.fromOffset(7, 20)
+        body.BackgroundTransparency = 1
+        body.Text = "—"
+        body.TextColor3 = Color3.fromRGB(230, 235, 248)
+        body.TextSize = 10
+        body.Font = Enum.Font.GothamMedium
+        body.TextWrapped = true
+        body.TextYAlignment = Enum.TextYAlignment.Top
+        body.TextXAlignment = Enum.TextXAlignment.Left
+        body.Parent = box
+
+        unifiedSections[key] = {Box = box, Body = body}
+    end
+
+    makeSection("Turn", "👤 เทิร์นปัจจุบัน", 58, 46, Color3.fromRGB(120, 205, 255))
+    makeSection("Api", "🧠 คำแนะนำล่าสุด", 110, 58, Color3.fromRGB(135, 245, 180))
+    makeSection("Wrong", "🚫 คำผิด / Blacklist", 174, 46, Color3.fromRGB(255, 120, 145))
+    makeSection("Decision", "📝 Decision Log", 226, 34, Color3.fromRGB(215, 170, 255))
+
+    local draggingHud, dragInputHud, dragStartHud, startPosHud
+    local function updateHud(input)
+        local delta = input.Position - dragStartHud
+        frame.Position = UDim2.new(startPosHud.X.Scale, startPosHud.X.Offset + delta.X, startPosHud.Y.Scale, startPosHud.Y.Offset + delta.Y)
+    end
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingHud = true
+            dragStartHud = input.Position
+            startPosHud = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then draggingHud = false end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInputHud = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInputHud and draggingHud then updateHud(input) end
+    end)
+end
+
+local function RefreshUnifiedInfoVisibility()
+    if not unifiedInfoGui or not unifiedInfoGui.Parent then CreateUnifiedInfoGui() end
+    unifiedInfoGui.Enabled = showApiWordList or showWrongWordList or showDecisionLog or showTurnStatusUI
+    if unifiedSections.Api then unifiedSections.Api.Box.Visible = showApiWordList end
+    if unifiedSections.Wrong then unifiedSections.Wrong.Box.Visible = showWrongWordList end
+    if unifiedSections.Decision then unifiedSections.Decision.Box.Visible = showDecisionLog end
+    if unifiedSections.Turn then unifiedSections.Turn.Box.Visible = showTurnStatusUI end
+end
+
+local function SetUnifiedSection(key, text)
+    if not unifiedInfoGui or not unifiedInfoGui.Parent then CreateUnifiedInfoGui() end
+    if unifiedSections[key] and unifiedSections[key].Body then
+        unifiedSections[key].Body.Text = text or "—"
+    end
+    RefreshUnifiedInfoVisibility()
+end
+
+-- Override the older separate floating widgets: all live status now renders inside one HUD.
+UpdateApiWordListGui = function(words)
+    words = words or lastAPIWords or {}
+    if apiWordListGui then apiWordListGui.Enabled = false end
+    local lines = {}
+    for i, word in ipairs(words) do
+        if i > 5 then break end
+        table.insert(lines, tostring(i) .. ". " .. tostring(word))
+    end
+    if #lines == 0 then table.insert(lines, "ยังไม่มีคำแนะนำ") end
+    SetUnifiedSection("Api", table.concat(lines, "\n"))
+end
+
+UpdateWrongWordListGui = function()
+    if wrongWordListGui then wrongWordListGui.Enabled = false end
+    local words = {}
+    for word in pairs(wrongWords) do
+        table.insert(words, word)
+        if #words >= 4 then break end
+    end
+    local extra = GetWrongWordsCount() > #words and ("\n+" .. tostring(GetWrongWordsCount() - #words) .. " คำ") or ""
+    SetUnifiedSection("Wrong", (#words > 0 and table.concat(words, ", ") or "ยังไม่มีคำผิด") .. extra)
+end
+
+UpdateDecisionLogGui = function(prefix, minLen, resultWord)
+    if decisionLogGui then decisionLogGui.Enabled = false end
+    local text = string.format("Prefix: %s | Min: %s\nเลือก: %s", tostring(prefix or "-"), tostring(minLen or "-"), tostring(resultWord or "None"))
+    SetUnifiedSection("Decision", text)
+end
+
+UpdateTurnStatusGui = function(turnName, lastWord)
+    if turnStatusGui then turnStatusGui.Enabled = false end
+    local name = turnName or "Me / Idle"
+    local word = lastWord or lastOtherPlayerWord or "None"
+    SetUnifiedSection("Turn", "ผู้เล่น: " .. tostring(name) .. "\nคำล่าสุด: " .. tostring(word))
 end
 
 -- === Ollama UI ===
@@ -2805,7 +3007,10 @@ MainTab:CreateToggle({
         UserConfig.TurnStatusUIToggle = v
         SaveUserConfig()
         if v then UpdateTurnStatusGui(currentTurnPlayerName, lastOtherPlayerWord) 
-        elseif turnStatusGui then turnStatusGui.Enabled = false end
+        else
+            if turnStatusGui then turnStatusGui.Enabled = false end
+            if RefreshUnifiedInfoVisibility then RefreshUnifiedInfoVisibility() end
+        end
     end
 })
 
@@ -2843,7 +3048,10 @@ MainTab:CreateToggle({
         UserConfig.ApiWordListUIToggle = v
         SaveUserConfig()
         if v then UpdateApiWordListGui(lastAPIWords)
-        elseif apiWordListGui then apiWordListGui.Enabled = false end
+        else
+            if apiWordListGui then apiWordListGui.Enabled = false end
+            if RefreshUnifiedInfoVisibility then RefreshUnifiedInfoVisibility() end
+        end
     end
 })
 
@@ -2856,7 +3064,10 @@ MainTab:CreateToggle({
         UserConfig.WrongWordListUIToggle = v
         SaveUserConfig()
         if v then UpdateWrongWordListGui()
-        elseif wrongWordListGui then wrongWordListGui.Enabled = false end
+        else
+            if wrongWordListGui then wrongWordListGui.Enabled = false end
+            if RefreshUnifiedInfoVisibility then RefreshUnifiedInfoVisibility() end
+        end
     end
 })
 
@@ -3117,8 +3328,8 @@ SettingsTab:CreateToggle({
         showDecisionLog = v
         UserConfig.DecisionLogToggle = v
         SaveUserConfig()
-        if not v and decisionLogGui then decisionLogGui.Enabled = false end
-        if v and decisionLogGui then decisionLogGui.Enabled = true end
+        if decisionLogGui then decisionLogGui.Enabled = false end
+        if RefreshUnifiedInfoVisibility then RefreshUnifiedInfoVisibility() end
     end,
 })
 
@@ -3296,6 +3507,7 @@ SettingsTab:CreateButton({
         if wrongWordListGui then wrongWordListGui:Destroy() end
         if decisionLogGui then decisionLogGui:Destroy() end
         if turnStatusGui then turnStatusGui:Destroy() end
+        if unifiedInfoGui then unifiedInfoGui:Destroy() end
         if ollamaAiGui then ollamaAiGui:Destroy() end
         if VisualsFolder then VisualsFolder:Destroy() end
         Rayfield:Destroy()
